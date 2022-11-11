@@ -351,6 +351,20 @@ public class CommandArgs<K, V> {
     }
 
     /**
+     * Determine whether the command parameter contains a specific parameter, is O(n) complexity, but is rarely called.
+     * @param arg the arg
+     * @return true: contain; false: not contain.
+     */
+    public boolean containArg(final String arg) {
+        for (SingularArgument sa : singularArguments) {
+            if (sa.toString().equalsIgnoreCase(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Encode the {@link CommandArgs} and write the arguments to the {@link ByteBuf}.
      *
      * @param buf the target buffer.

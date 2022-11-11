@@ -52,6 +52,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.local.LocalAddress;
+import io.netty.util.AttributeKey;
 import io.netty.util.Recycler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
@@ -84,13 +85,13 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
 
     private static final AtomicLong COMMAND_HANDLER_COUNTER = new AtomicLong();
 
+    public static final AttributeKey<ArrayDeque<RedisCommand<?, ?, ?>>> COMMANDS_STACK = AttributeKey.valueOf("COMMANDS_STACK");
+
     private final ClientOptions clientOptions;
 
     private final ClientResources clientResources;
 
     private final Endpoint endpoint;
-
-    private final ArrayDeque<RedisCommand<?, ?, ?>> stack = new ArrayDeque<>();
 
     private final long commandHandlerId = COMMAND_HANDLER_COUNTER.incrementAndGet();
 
@@ -162,7 +163,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
     }
 
     public Queue<RedisCommand<?, ?, ?>> getStack() {
-        return stack;
+        return channel.attr(COMMANDS_STACK).get();
     }
 
     protected void setState(LifecycleState lifecycleState) {
@@ -178,7 +179,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
 
     @Override
     public Collection<RedisCommand<?, ?, ?>> drainQueue() {
-        return drainCommands(stack);
+        return drainCommands(channel.attr(COMMANDS_STACK).get());
     }
 
     protected LifecycleState getState() {
@@ -214,6 +215,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
 
         buffer = ctx.alloc().buffer(8192 * 8);
         rsm = new RedisStateMachine();
+        channel.attr(COMMANDS_STACK).set(new ArrayDeque<>());
         ctx.fireChannelRegistered();
     }
 
@@ -265,6 +267,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
 
         InternalLogLevel logLevel = InternalLogLevel.WARN;
 
+        ArrayDeque<RedisCommand<?, ?, ?>> stack = channel.attr(COMMANDS_STACK).get();
         if (!stack.isEmpty()) {
             RedisCommand<?, ?, ?> command = stack.poll();
             if (debugEnabled) {
@@ -501,7 +504,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
             }
 
             RedisCommand<?, ?, ?> redisCommand = potentiallyWrapLatencyCommand(command);
-
+            ArrayDeque<RedisCommand<?, ?, ?>> stack = channel.attr(COMMANDS_STACK).get();
             if (promise.isVoid()) {
                 stack.add(redisCommand);
             } else {
@@ -522,7 +525,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
             int maxMaintenanceCommands = 5;
             int allowedRequestQueueSize = Math.max(1, clientOptions.getRequestQueueSize() - maxMaintenanceCommands);
 
-            if (stack.size() + commands > allowedRequestQueueSize)
+            if (channel.attr(COMMANDS_STACK).get().size() + commands > allowedRequestQueueSize)
 
                 throw new RedisException("Internal stack size exceeded: " + clientOptions.getRequestQueueSize()
                         + ". Commands are not accepted until the stack size drops.");
@@ -575,7 +578,8 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
         }
 
         if (debugEnabled) {
-            logger.debug("{} Received: {} bytes, {} commands in the stack", logPrefix(), input.readableBytes(), stack.size());
+            logger.debug("{} Received: {} bytes, {} commands in the stack", logPrefix(), input.readableBytes(),
+                channel.attr(COMMANDS_STACK).get().size());
         }
 
         try {
@@ -606,7 +610,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
 
         if (pristine) {
 
-            if (stack.isEmpty() && buffer.isReadable() && !isPushDecode(buffer)) {
+            if (channel.attr(COMMANDS_STACK).get().isEmpty() && buffer.isReadable() && !isPushDecode(buffer)) {
 
                 if (debugEnabled) {
                     logger.debug("{} Received response without a command context (empty stack)", logPrefix());
@@ -647,6 +651,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
                 notifyPushListeners(output);
             } else {
 
+                ArrayDeque<RedisCommand<?, ?, ?>> stack = channel.attr(COMMANDS_STACK).get();
                 RedisCommand<?, ?, ?> command = stack.peek();
                 if (debugEnabled) {
                     logger.debug("{} Stack contains: {} commands", logPrefix(), stack.size());
@@ -724,7 +729,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
     }
 
     private boolean isMessageDecode() {
-        return !stack.isEmpty();
+        return !channel.attr(COMMANDS_STACK).get().isEmpty();
     }
 
     /**
@@ -890,6 +895,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
             channel.disconnect();
         }
 
+        ArrayDeque<RedisCommand<?, ?, ?>> stack = channel.attr(COMMANDS_STACK).get();
         stack.forEach(cmd -> cmd.completeExceptionally(exception));
         stack.clear();
     }
@@ -935,7 +941,7 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
     private void reset() {
 
         resetInternals();
-        cancelCommands("Reset", drainCommands(stack));
+        cancelCommands("Reset", drainCommands(channel.attr(COMMANDS_STACK).get()));
     }
 
     private void resetInternals() {

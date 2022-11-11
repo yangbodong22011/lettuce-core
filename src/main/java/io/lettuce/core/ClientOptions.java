@@ -61,6 +61,8 @@ public class ClientOptions implements Serializable {
 
     public static final TimeoutOptions DEFAULT_TIMEOUT_OPTIONS = TimeoutOptions.create();
 
+    public static final int DEFAULT_PING_CONNECTION_INTERVAL = 0;
+
     private final boolean autoReconnect;
 
     private final boolean cancelCommandsOnReconnectFailure;
@@ -87,6 +89,8 @@ public class ClientOptions implements Serializable {
 
     private final TimeoutOptions timeoutOptions;
 
+    private final int pingConnectionInterval;
+
     protected ClientOptions(Builder builder) {
         this.autoReconnect = builder.autoReconnect;
         this.cancelCommandsOnReconnectFailure = builder.cancelCommandsOnReconnectFailure;
@@ -101,6 +105,7 @@ public class ClientOptions implements Serializable {
         this.sslOptions = builder.sslOptions;
         this.suspendReconnectOnProtocolFailure = builder.suspendReconnectOnProtocolFailure;
         this.timeoutOptions = builder.timeoutOptions;
+        this.pingConnectionInterval = builder.pingConnectionInterval;
     }
 
     protected ClientOptions(ClientOptions original) {
@@ -117,6 +122,7 @@ public class ClientOptions implements Serializable {
         this.sslOptions = original.getSslOptions();
         this.suspendReconnectOnProtocolFailure = original.isSuspendReconnectOnProtocolFailure();
         this.timeoutOptions = original.getTimeoutOptions();
+        this.pingConnectionInterval = original.getPingConnectionInterval();
     }
 
     /**
@@ -177,6 +183,8 @@ public class ClientOptions implements Serializable {
         private boolean suspendReconnectOnProtocolFailure = DEFAULT_SUSPEND_RECONNECT_PROTO_FAIL;
 
         private TimeoutOptions timeoutOptions = DEFAULT_TIMEOUT_OPTIONS;
+
+        private int pingConnectionInterval = DEFAULT_PING_CONNECTION_INTERVAL;
 
         protected Builder() {
         }
@@ -394,6 +402,19 @@ public class ClientOptions implements Serializable {
         }
 
         /**
+         * Set the period of sending PING command. see {@link PingConnectionHandler}
+         * @param pingConnectionInterval the period
+         * @return {@code this}
+         */
+        public Builder pingConnectionInterval(int pingConnectionInterval) {
+            if (pingConnectionInterval <= 0) {
+                throw new IllegalArgumentException("PingConnectionInterval must be greater than 0, unit:ms");
+            }
+            this.pingConnectionInterval = pingConnectionInterval;
+            return this;
+        }
+
+        /**
          * Create a new instance of {@link ClientOptions}.
          *
          * @return new instance of {@link ClientOptions}
@@ -421,7 +442,8 @@ public class ClientOptions implements Serializable {
                 .publishOnScheduler(isPublishOnScheduler()).pingBeforeActivateConnection(isPingBeforeActivateConnection())
                 .protocolVersion(getConfiguredProtocolVersion()).requestQueueSize(getRequestQueueSize())
                 .scriptCharset(getScriptCharset()).socketOptions(getSocketOptions()).sslOptions(getSslOptions())
-                .suspendReconnectOnProtocolFailure(isSuspendReconnectOnProtocolFailure()).timeoutOptions(getTimeoutOptions());
+                .suspendReconnectOnProtocolFailure(isSuspendReconnectOnProtocolFailure()).timeoutOptions(getTimeoutOptions())
+                .pingConnectionInterval(getPingConnectionInterval());
 
         return builder;
     }
@@ -596,6 +618,14 @@ public class ClientOptions implements Serializable {
      */
     public TimeoutOptions getTimeoutOptions() {
         return timeoutOptions;
+    }
+
+    /**
+     * Return the pingConnectionInterval
+     * @return the pingConnectionInterval
+     */
+    public int getPingConnectionInterval() {
+        return pingConnectionInterval;
     }
 
     /**

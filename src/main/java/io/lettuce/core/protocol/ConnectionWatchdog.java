@@ -418,6 +418,11 @@ public class ConnectionWatchdog extends ChannelInboundHandlerAdapter {
         return reconnectionHandler.isReconnectSuspended();
     }
 
+    public void setSocketAddressSupplier(Mono<SocketAddress> socketAddressSupplier) {
+        LettuceAssert.notNull(socketAddressSupplier, "SocketAddressSupplier must not be null");
+        reconnectionHandler.setSocketAddressSupplier(wrapSocketAddressSupplier(socketAddressSupplier));
+    }
+
     ReconnectionHandler getReconnectionHandler() {
         return reconnectionHandler;
     }

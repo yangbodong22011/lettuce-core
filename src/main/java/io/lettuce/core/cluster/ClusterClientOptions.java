@@ -140,7 +140,7 @@ public class ClusterClientOptions extends ClientOptions {
                 .requestQueueSize(clientOptions.getRequestQueueSize()).scriptCharset(clientOptions.getScriptCharset())
                 .socketOptions(clientOptions.getSocketOptions()).sslOptions(clientOptions.getSslOptions())
                 .suspendReconnectOnProtocolFailure(clientOptions.isSuspendReconnectOnProtocolFailure())
-                .timeoutOptions(clientOptions.getTimeoutOptions());
+                .timeoutOptions(clientOptions.getTimeoutOptions()).capaRedirect(clientOptions.isCapaRedirect());
 
         return builder;
     }
@@ -270,6 +270,12 @@ public class ClusterClientOptions extends ClientOptions {
             return this;
         }
 
+        @Override
+        public Builder capaRedirect(boolean capaRedirect) {
+            super.capaRedirect(capaRedirect);
+            return this;
+        }
+
         /**
          * Sets the {@link ClusterTopologyRefreshOptions} for detailed control of topology updates.
          *
@@ -343,7 +349,7 @@ public class ClusterClientOptions extends ClientOptions {
                 .readOnlyCommands(getReadOnlyCommands()).requestQueueSize(getRequestQueueSize())
                 .scriptCharset(getScriptCharset()).socketOptions(getSocketOptions()).sslOptions(getSslOptions())
                 .suspendReconnectOnProtocolFailure(isSuspendReconnectOnProtocolFailure()).timeoutOptions(getTimeoutOptions())
-                .topologyRefreshOptions(getTopologyRefreshOptions())
+                .topologyRefreshOptions(getTopologyRefreshOptions()).capaRedirect(isCapaRedirect())
                 .validateClusterNodeMembership(isValidateClusterNodeMembership()).nodeFilter(getNodeFilter());
 
         return builder;

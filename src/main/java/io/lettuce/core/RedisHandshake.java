@@ -65,18 +65,21 @@ class RedisHandshake implements ConnectionInitializer {
 
     private final boolean pingOnConnect;
 
+    private final boolean capaRedirect;
+
     private final ConnectionState connectionState;
 
     private volatile ProtocolVersion negotiatedProtocolVersion;
 
     private final EndpointTypeSource endpointTypeSource;
 
-    RedisHandshake(ProtocolVersion requestedProtocolVersion, boolean pingOnConnect, ConnectionState connectionState,
-            EndpointTypeSource endpointTypeSource) {
+    RedisHandshake(ProtocolVersion requestedProtocolVersion, boolean pingOnConnect, boolean capaRedirect,
+            ConnectionState connectionState, EndpointTypeSource endpointTypeSource) {
 
         this.endpointTypeSource = endpointTypeSource;
         this.requestedProtocolVersion = requestedProtocolVersion;
         this.pingOnConnect = pingOnConnect;
+        this.capaRedirect = capaRedirect;
         this.connectionState = connectionState;
     }
 
@@ -270,6 +273,11 @@ class RedisHandshake implements ConnectionInitializer {
 
         if (connectionState.isReadOnly()) {
             postHandshake.add(new AsyncCommand<>(this.commandBuilder.readOnly()));
+        }
+
+        if (capaRedirect) {
+            CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).add("CAPA").add("redirect");
+            postHandshake.add(new AsyncCommand<>(new Command<>(CLIENT, new StatusOutput<>(StringCodec.UTF8), args)));
         }
 
         if (postHandshake.isEmpty()) {

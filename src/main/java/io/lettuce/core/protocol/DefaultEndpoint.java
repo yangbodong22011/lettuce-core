@@ -27,8 +27,10 @@ import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -42,6 +44,8 @@ import io.lettuce.core.ConnectionEvents;
 import io.lettuce.core.RedisChannelWriter;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisException;
+import io.lettuce.core.RedisRedirectException;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.push.PushListener;
 import io.lettuce.core.internal.Futures;
 import io.lettuce.core.internal.LettuceAssert;
@@ -51,6 +55,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.codec.EncoderException;
+import reactor.core.publisher.Mono;
 import io.netty.util.Recycler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
@@ -118,6 +123,9 @@ public class DefaultEndpoint implements RedisChannelWriter, Endpoint, PushHandle
     private ConnectionFacade connectionFacade;
 
     private volatile Throwable connectionError;
+
+    private final Set<RedisCommand<?, ?, ?>> redirectedCommands = Collections
+            .synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
 
     // access via QUEUE_SIZE
     @SuppressWarnings("unused")
@@ -540,6 +548,34 @@ public class DefaultEndpoint implements RedisChannelWriter, Endpoint, PushHandle
     @Override
     public void registerConnectionWatchdog(ConnectionWatchdog connectionWatchdog) {
         this.connectionWatchdog = connectionWatchdog;
+    }
+
+    @Override
+    public boolean notifyRedirect(RedisCommand<?, ?, ?> command, RedisRedirectException redirect) {
+
+        if (connectionWatchdog == null || !redirectedCommands.add(command)) {
+            return false;
+        }
+
+        if (command.getOutput() != null) {
+            command.getOutput().reset();
+        }
+
+        try {
+            connectionWatchdog.setSocketAddressSupplier(Mono.just(
+                    clientResources.socketAddressResolver().resolve(RedisURI.create(redirect.getHost(), redirect.getPort()))));
+        } catch (RuntimeException e) {
+            redirectedCommands.remove(command);
+            command.completeExceptionally(e);
+            return false;
+        }
+
+        Channel channel = this.channel;
+        if (channel != null) {
+            channel.close();
+        }
+
+        return true;
     }
 
     @Override

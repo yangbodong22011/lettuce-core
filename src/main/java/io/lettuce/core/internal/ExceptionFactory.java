@@ -31,6 +31,7 @@ import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.RedisLoadingException;
 import io.lettuce.core.RedisNoScriptException;
 import io.lettuce.core.RedisReadOnlyException;
+import io.lettuce.core.RedisRedirectException;
 
 /**
  * Factory for Redis exceptions.
@@ -146,6 +147,10 @@ public abstract class ExceptionFactory {
 
             if (message.startsWith("READONLY")) {
                 return cause != null ? new RedisReadOnlyException(message, cause) : new RedisReadOnlyException(message);
+            }
+
+            if (RedisRedirectException.isRedirect(message)) {
+                return cause != null ? new RedisRedirectException(message, cause) : new RedisRedirectException(message);
             }
 
             return cause != null ? new RedisCommandExecutionException(message, cause)

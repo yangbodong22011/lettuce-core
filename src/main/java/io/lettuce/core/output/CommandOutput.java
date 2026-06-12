@@ -171,6 +171,15 @@ public abstract class CommandOutput<K, V, T> {
     }
 
     /**
+     * Reset transient output state before retrying a command internally.
+     *
+     * @since 7.0
+     */
+    public void reset() {
+        this.error = null;
+    }
+
+    /**
      * Mark the command output complete.
      *
      * @param depth Remaining depth of output queue.

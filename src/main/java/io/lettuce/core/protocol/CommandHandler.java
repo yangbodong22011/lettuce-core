@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisException;
+import io.lettuce.core.RedisRedirectException;
 import io.lettuce.core.api.push.PushListener;
 import io.lettuce.core.api.push.PushMessage;
 import io.lettuce.core.datastructure.queue.HashIndexedQueue;
@@ -680,6 +681,10 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
                 hasDecodeProgress = false;
                 if (isProtectedMode(command)) {
                     onProtectedMode(command.getOutput().getError());
+                } else if (isCapaRedirect(command)
+                        && endpoint.notifyRedirect(command, new RedisRedirectException(command.getOutput().getError()))) {
+                    afterDecode(ctx, command);
+                    return;
                 } else {
 
                     if (canComplete(command)) {
@@ -904,6 +909,11 @@ public class CommandHandler extends ChannelDuplexHandler implements HasQueuedCom
     private boolean isProtectedMode(RedisCommand<?, ?, ?> command) {
         return command != null && command.getOutput() != null && command.getOutput().hasError()
                 && RedisConnectionException.isProtectedMode(command.getOutput().getError());
+    }
+
+    private boolean isCapaRedirect(RedisCommand<?, ?, ?> command) {
+        return clientOptions.isCapaRedirect() && command != null && command.getOutput() != null
+                && RedisRedirectException.isRedirect(command.getOutput().getError());
     }
 
     private void onProtectedMode(String message) {

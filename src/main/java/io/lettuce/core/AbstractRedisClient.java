@@ -606,7 +606,7 @@ public abstract class AbstractRedisClient implements BaseRedisClient {
         }
 
         return new RedisHandshake(clientOptions.getConfiguredProtocolVersion(), clientOptions.isPingBeforeActivateConnection(),
-                state, source);
+                clientOptions.isCapaRedirect(), state, source);
     }
 
 }

@@ -1,5 +1,6 @@
 package io.lettuce.core.protocol;
 
+import io.lettuce.core.RedisRedirectException;
 import io.netty.channel.Channel;
 
 /**
@@ -44,6 +45,18 @@ public interface Endpoint extends PushHandler {
      * @param queuedCommands the queue holder.
      */
     void notifyDrainQueuedCommands(HasQueuedCommands queuedCommands);
+
+    /**
+     * Notify the endpoint about a CAPA redirect.
+     *
+     * @param command the command receiving {@code -REDIRECT}
+     * @param redirect the redirect details
+     * @return {@code true} if the command should be retried.
+     * @since 7.0
+     */
+    default boolean notifyRedirect(RedisCommand<?, ?, ?> command, RedisRedirectException redirect) {
+        return false;
+    }
 
     /**
      * Associate a {@link ConnectionWatchdog} with the {@link Endpoint}.

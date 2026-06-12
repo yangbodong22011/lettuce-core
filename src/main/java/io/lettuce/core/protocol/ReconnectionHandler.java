@@ -188,6 +188,11 @@ class ReconnectionHandler {
         this.reconnectSuspended = reconnectSuspended;
     }
 
+    void setSocketAddressSupplier(Mono<SocketAddress> socketAddressSupplier) {
+        LettuceAssert.notNull(socketAddressSupplier, "SocketAddressSupplier must not be null");
+        this.socketAddressSupplier = socketAddressSupplier;
+    }
+
     void prepareClose() {
 
         CompletableFuture<?> currentFuture = this.currentFuture;

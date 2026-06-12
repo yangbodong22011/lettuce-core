@@ -85,6 +85,11 @@ public class TransformingOutput<K, V, S, T> extends CommandOutput<K, V, T> {
     }
 
     @Override
+    public void reset() {
+        delegate.reset();
+    }
+
+    @Override
     public T get() {
         return mappingFunction.apply(accessor);
     }

@@ -96,6 +96,8 @@ public class ClientOptions implements Serializable {
 
     public static final boolean DEFAULT_USE_HASH_INDEX_QUEUE = true;
 
+    public static final boolean DEFAULT_CAPA_REDIRECT = false;
+
     private final boolean autoReconnect;
 
     private final MaintNotificationsConfig maintNotificationsConfig;
@@ -132,6 +134,8 @@ public class ClientOptions implements Serializable {
 
     private final boolean useHashIndexedQueue;
 
+    private final boolean capaRedirect;
+
     protected ClientOptions(Builder builder) {
         this.autoReconnect = builder.autoReconnect;
         this.maintNotificationsConfig = builder.maintNotificationsConfig;
@@ -151,6 +155,7 @@ public class ClientOptions implements Serializable {
         this.suspendReconnectOnProtocolFailure = builder.suspendReconnectOnProtocolFailure;
         this.timeoutOptions = builder.timeoutOptions;
         this.useHashIndexedQueue = builder.useHashIndexedQueue;
+        this.capaRedirect = builder.capaRedirect;
     }
 
     protected ClientOptions(ClientOptions original) {
@@ -172,6 +177,7 @@ public class ClientOptions implements Serializable {
         this.suspendReconnectOnProtocolFailure = original.isSuspendReconnectOnProtocolFailure();
         this.timeoutOptions = original.getTimeoutOptions();
         this.useHashIndexedQueue = original.isUseHashIndexedQueue();
+        this.capaRedirect = original.isCapaRedirect();
     }
 
     /**
@@ -242,6 +248,8 @@ public class ClientOptions implements Serializable {
         private ReauthenticateBehavior reauthenticateBehavior = DEFAULT_REAUTHENTICATE_BEHAVIOUR;
 
         private boolean useHashIndexedQueue = DEFAULT_USE_HASH_INDEX_QUEUE;
+
+        private boolean capaRedirect = DEFAULT_CAPA_REDIRECT;
 
         protected Builder() {
         }
@@ -512,6 +520,19 @@ public class ClientOptions implements Serializable {
         }
 
         /**
+         * Enables CAPA redirect support. When enabled, new connections announce {@code CLIENT CAPA redirect} and commands
+         * receiving {@code -REDIRECT host:port} are retried once after reconnecting to the announced primary.
+         *
+         * @param capaRedirect true/false
+         * @return {@code this}
+         * @since 7.0
+         */
+        public Builder capaRedirect(boolean capaRedirect) {
+            this.capaRedirect = capaRedirect;
+            return this;
+        }
+
+        /**
          * Create a new instance of {@link ClientOptions}.
          *
          * @return new instance of {@link ClientOptions}
@@ -540,7 +561,8 @@ public class ClientOptions implements Serializable {
                 .pingBeforeActivateConnection(isPingBeforeActivateConnection()).protocolVersion(getConfiguredProtocolVersion())
                 .requestQueueSize(getRequestQueueSize()).scriptCharset(getScriptCharset()).jsonParser(getJsonParser())
                 .socketOptions(getSocketOptions()).sslOptions(getSslOptions())
-                .suspendReconnectOnProtocolFailure(isSuspendReconnectOnProtocolFailure()).timeoutOptions(getTimeoutOptions());
+                .suspendReconnectOnProtocolFailure(isSuspendReconnectOnProtocolFailure()).timeoutOptions(getTimeoutOptions())
+                .capaRedirect(isCapaRedirect());
 
         return builder;
     }
@@ -788,6 +810,14 @@ public class ClientOptions implements Serializable {
      */
     public boolean isUseHashIndexedQueue() {
         return useHashIndexedQueue;
+    }
+
+    /**
+     * @return {@code true} if CAPA redirect support is enabled.
+     * @since 7.0
+     */
+    public boolean isCapaRedirect() {
+        return capaRedirect;
     }
 
     /**
